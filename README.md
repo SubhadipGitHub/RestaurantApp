@@ -70,7 +70,7 @@ Kafka streams booking events for real-time updates.
 ## 📂 Project Structure
 
 ### Frontend (React)
-`
+
 /client
 ├── public
 │   ├── index.html
@@ -90,7 +90,7 @@ Kafka streams booking events for real-time updates.
 │   └── index.js                    # ReactDOM render
 ├── .env                             # Environment variables
 └── package.json                     # Project dependencies
-`
+
 ### Backend (FastAPI)
 `
 /server
