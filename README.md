@@ -27,7 +27,7 @@ Select and book available tables for a specific date and time.
 Manage their bookings via an authenticated user profile.
 Real-time notifications and events through Kafka.
 
-##✨ Features
+## ✨ Features
 
 Visual Table Layout: Customers can see which tables are available and book them.
 Date and Time Picker: Select tables for specific time slots.
