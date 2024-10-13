@@ -119,82 +119,88 @@ Google OAuth credentials (Client ID and Secret).
 Installation Steps
 Clone the repository:
 
-`
+```
 git clone https://github.com/yourusername/restaurant-booking-app.git
 cd restaurant-booking-app/client
-`
+```
+
 ## Install dependencies:
 
-`
+```
 npm install
 Create .env file in the root of the client directory and add:
-`
+```
+
 env
-`
+```
 REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id
 REACT_APP_BACKEND_URL=http://localhost:8000
-`
+```
 
 ## Run the development server:
 
-`
+```
 npm start
-`
+```
+
 Access the app: Visit http://localhost:3000 in your browser.
 
 ## ⚙️ Backend Setup
 
 Prerequisites
+
+```
 Python 3.7+
 MongoDB Atlas account
-
 Kafka installed locally or through a cloud service.
+```
 
 ## Installation Steps
 Clone the repository:
 
-`
+```
 git clone https://github.com/yourusername/restaurant-booking-app.git
 cd restaurant-booking-app/server
-`
+```
 
 Create a virtual environment:
 
-`
+```
 python3 -m venv venv
 source venv/bin/activate
-`
+```
 
 Install dependencies:
 
-`
+```
 pip install -r requirements.txt
-`
+```
 
 Create .env file in the root of the server directory:
 
 env
-`
+```
 MONGO_URI=your-mongo-atlas-uri
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 KAFKA_SERVER=localhost:9092
 SECRET_KEY=your-random-secret-key
-`
+```
 
 Run the FastAPI server:
 
-`
+```
 uvicorn app.main:app --reload4
-`
+```
 
-Access API documentation: Visit http://localhost:8000/docs for interactive API documentation.
+Access API documentation: 
+Visit http://localhost:8000/docs for interactive API documentation.
 
 ## 🗃️ Database Schema
 
 User Collection:
 json
-`
+```
 {
   "_id": "ObjectId",
   "name": "string",
@@ -208,11 +214,11 @@ json
     }
   ]
 }
-`
+```
 
 Booking Collection:
 json
-`
+```
 {
   "_id": "ObjectId",
   "user_id": "ObjectId",
@@ -220,7 +226,7 @@ json
   "date": "datetime",
   "time": "string"
 }
-`
+```
 
 ## 🛠️ Usage
 
@@ -235,21 +241,21 @@ To run this project, you will need to set the following environment variables in
 ### Frontend (client/.env):
 
 env
-`
+```
 REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id
 REACT_APP_BACKEND_URL=http://localhost:8000
-`
+```
 
 ### Backend (server/.env):
 
 env
-`
+```
 MONGO_URI=your-mongo-atlas-uri
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 KAFKA_SERVER=localhost:9092
 SECRET_KEY=your-random-secret-key
-`
+```
 
 ## 🤝 Contributing
 
