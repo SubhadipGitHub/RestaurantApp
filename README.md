@@ -71,8 +71,8 @@ Kafka streams booking events for real-time updates.
 
 ### Frontend (React)
 
-
-`
+```
+/client
 ├── public
 │   ├── index.html
 │   └── manifest.json
@@ -91,10 +91,11 @@ Kafka streams booking events for real-time updates.
 │   └── index.js                    # ReactDOM render
 ├── .env                             # Environment variables
 └── package.json                     # Project dependencies
-`
+```
 
 ### Backend (FastAPI)
 
+```
 /server
 ├── app
 │   ├── main.py                      # FastAPI app entry point
@@ -108,6 +109,7 @@ Kafka streams booking events for real-time updates.
 │   └── utils.py                     # Helper functions (Google token verification)
 ├── .env                              # Environment variables
 └── requirements.txt                  # Python dependencies
+```
 
 ⚙️ Frontend Setup
 
