@@ -92,7 +92,7 @@ Kafka streams booking events for real-time updates.
 └── package.json                     # Project dependencies
 
 ### Backend (FastAPI)
-`
+
 /server
 ├── app
 │   ├── main.py                      # FastAPI app entry point
@@ -106,7 +106,7 @@ Kafka streams booking events for real-time updates.
 │   └── utils.py                     # Helper functions (Google token verification)
 ├── .env                              # Environment variables
 └── requirements.txt                  # Python dependencies
-`
+
 ⚙️ Frontend Setup
 
 ## Prerequisites
