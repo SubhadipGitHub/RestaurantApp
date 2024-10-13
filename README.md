@@ -71,9 +71,8 @@ Kafka streams booking events for real-time updates.
 
 ### Frontend (React)
 
-bash
-Copy code
-/client
+
+`
 ├── public
 │   ├── index.html
 │   └── manifest.json
@@ -92,6 +91,7 @@ Copy code
 │   └── index.js                    # ReactDOM render
 ├── .env                             # Environment variables
 └── package.json                     # Project dependencies
+`
 
 ### Backend (FastAPI)
 
