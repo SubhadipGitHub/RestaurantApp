@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+google-auth
+pymongo
+dnspython
+motor
+pydantic
+aiokafka
+requests
+python-dotenv
+python-jose[cryptography]

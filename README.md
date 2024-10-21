@@ -120,7 +120,7 @@ Installation Steps
 Clone the repository:
 
 ```
-git clone https://github.com/yourusername/restaurant-booking-app.git
+git clone https://github.com/SubhadipGitHub/RestaurantApp.git
 cd restaurant-booking-app/client
 ```
 
@@ -163,37 +163,73 @@ git clone https://github.com/yourusername/restaurant-booking-app.git
 cd restaurant-booking-app/server
 ```
 
-Create a virtual environment:
+1. Create a Conda Environment
+Open your terminal or command prompt and run the following command to create a new conda environment:
 
 ```
-python3 -m venv venv
-source venv/bin/activate
+conda create -n restoappenv python=3.9
 ```
 
-Install dependencies:
+2. Activate the Conda Environment
+Once the environment is created, activate it with:
+
+```
+conda activate restoappenv
+```
+
+3. Prepare requirements.txt
+Ensure that your requirements.txt file contains the necessary dependencies, like:
+
+```
+fastapi
+uvicorn
+google-auth
+pymongo
+dnspython
+motor
+pydantic
+aiokafka
+requests
+python-dotenv
+```
+
+4. Install Dependencies using requirements.txt
+Run the following command to install all the dependencies listed in requirements.txt using pip within the restoappenv environment:
 
 ```
 pip install -r requirements.txt
 ```
 
-Create .env file in the root of the server directory:
+5. Verify the Environment Setup
+You can verify that everything is set up correctly by running:
+
+```
+conda list
+```
+
+This should display all installed packages, including Python 3.9 and the ones listed in requirements.txt.
+
+6. Create .env file in the root of the server directory:
 
 env
 ```
-MONGO_URI=your-mongo-atlas-uri
+MONGO_USERNAME=mongo-db-user
+MONGO_PASSWORD=mongo-db-password
+MONGO_CLUSTER_URL=cluster-link
+MONGO_DB_NAME=db-name
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 KAFKA_SERVER=localhost:9092
 SECRET_KEY=your-random-secret-key
 ```
 
-Run the FastAPI server:
+7. Run the FastAPI server:
 
 ```
-uvicorn app.main:app --reload4
+uvicorn main:app --reload
 ```
 
-Access API documentation: 
+8. Access API documentation: 
 Visit http://localhost:8000/docs for interactive API documentation.
 
 ## 🗃️ Database Schema
