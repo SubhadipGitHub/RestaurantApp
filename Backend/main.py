@@ -8,9 +8,9 @@ import time
 from datetime import datetime
 import os
 import json
-from pydantic import BaseModel
-from aiokafka import AIOKafkaProducer
+from pydantic import BaseModel, Field
 import asyncio
+from typing import List, Optional
 from bson import ObjectId
 from dotenv import load_dotenv
 import urllib.parse
@@ -32,10 +32,6 @@ MONGO_DB_URL = f"mongodb+srv://{MONGO_USERNAME}:{MONGO_PASSWORD}@{MONGO_CLUSTER_
 client = AsyncIOMotorClient(MONGO_DB_URL)
 db = client.restoDB  # Database
 
-# Kafka producer setup
-loop = asyncio.get_event_loop()
-producer = AIOKafkaProducer(loop=loop, bootstrap_servers='localhost:9092')
-
 # OAuth2 setup
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
@@ -43,9 +39,28 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_CLIENT_REDIRECT")
 
 # Models
-class BookingRequest(BaseModel):
-    table_id: int
-    datetime: str  # ISO datetime format is recommended
+class BookingModel(BaseModel):
+    restaurant_id: str
+    no_of_people: int
+    time_slot: str  # e.g., "2024-10-23 18:00"
+    booking_info: dict = {}
+    customer_name: str
+    customer_email: str
+
+class BookingUpdateModel(BaseModel):
+    status: Optional[str] = Field(None, pattern="^(PENDING|CONFIRMED|CANCELLED)$")
+    table_id: Optional[str]
+    order_info: Optional[dict]  # Update order items
+    customer_name: Optional[str]
+    customer_email: Optional[str]
+
+class TableModel(BaseModel):
+    restaurant_id: str
+    seats: int
+    status: str = Field(None, pattern="^(AVAILABLE|BLOCKED|OCCUPIED)$")
+    booking_id: Optional[str] = None
+    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
     
 class User(BaseModel):
     email: str
@@ -55,15 +70,9 @@ class User(BaseModel):
 #Frontend config
 FRONTEND_URL = os.getenv("FRONTEND_URL")
 
-# Kafka startup/shutdown events
-@app.on_event("startup")
-async def startup_event():
-    await producer.start()
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    await producer.stop()
+def generate_custom_id(prefix: str):
+    """Generate a custom _id with a prefix and current Unix timestamp."""
+    return f"{prefix}_{int(time.time())}"
 
 
 # Helper function to get user from MongoDB
@@ -214,40 +223,195 @@ async def get_token(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise HTTPException(status_code=403, detail="Invalid token")
 
+@app.post("/bookings/")
+async def create_booking(booking: BookingModel):
+    try:
+        available_table = await db.tables.find_one({
+            "restaurant_id": booking.restaurant_id,
+            "seats": {"$gte": booking.no_of_people},
+            "status": "AVAILABLE"
+        })
 
-# Endpoint to handle table booking and store the booking data in MongoDB
-@app.post("/book_table/")
-async def book_table(booking_request: BookingRequest, user_id: str, token: str = Depends(oauth2_scheme)):
-    user = await get_user_by_email(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        if not available_table:
+            raise HTTPException(status_code=404, detail="No available tables for the booking")
+
+        booking_id = generate_custom_id("BOOKING")
+
+        booking_data = {
+            "_id": booking_id,
+            "restaurant_id": booking.restaurant_id,
+            "no_of_people": booking.no_of_people,
+            "time_slot": booking.time_slot,
+            "booking_info": booking.booking_info,
+            "customer_name": booking.customer_name,
+            "customer_email": booking.customer_email,
+            "status": "CONFIRMED",
+            "table_id": available_table["_id"],
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+        }
+
+        await db.bookings.insert_one(booking_data)
+
+        # Update table to mark it as occupied and link booking ID
+        await db.tables.update_one(
+            {"_id": available_table["_id"]},
+            {"$set": {
+                "status": "OCCUPIED",
+                "booking_id": booking_id,
+                "updated_at": datetime.utcnow()
+            }}
+        )
+
+        return {"message": "Booking confirmed", "booking_id": booking_id, "table_id": available_table["_id"]}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating booking: {str(e)}")
     
-    # Prepare the booking event
-    booking_event = {
-        "table_id": booking_request.table_id,
-        "datetime": booking_request.datetime,
-        "user_id": user["_id"],
-        "user_name": user["name"]
-    }
+
+@app.put("/bookings/{booking_id}")
+async def update_booking(booking_id: str, update_data: BookingUpdateModel):
+    try:
+        booking = await db.bookings.find_one({"_id": booking_id})
+
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+
+        update_fields = {}
+
+        # Update status if provided
+        if update_data.status:
+            update_fields["status"] = update_data.status
+        
+        # Update table_id if provided
+        if update_data.table_id:
+            update_fields["table_id"] = update_data.table_id
+
+        # Update order_info if provided
+        if update_data.order_info:
+            if "order_info" in booking:
+                booking["order_info"].update(update_data.order_info)
+            else:
+                booking["order_info"] = update_data.order_info
+            update_fields["order_info"] = booking["order_info"]
+
+        # Update customer_name and customer_email if provided
+        if update_data.customer_name:
+            update_fields["customer_name"] = update_data.customer_name
+        if update_data.customer_email:
+            update_fields["customer_email"] = update_data.customer_email
+
+        # Update the timestamp
+        update_fields["updated_at"] = datetime.utcnow()
+
+        # Apply the update
+        result = await db.bookings.update_one(
+            {"_id": booking_id},
+            {"$set": update_fields}
+        )
+
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="No changes made to the booking")
+
+        return {"message": "Booking updated successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error updating booking: {str(e)}")
     
-    # Store booking in MongoDB
-    await db.bookings.insert_one(booking_event)
+# Clear table booking when booking is closed or cancelled
+@app.put("/clear_table_booking/{booking_id}")
+async def clear_table_booking(booking_id: str):
+    try:
+        # Find the booking first
+        booking = await db.bookings.find_one({"_id": booking_id})
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
 
-    # Send the booking event to Kafka topic
-    await producer.send_and_wait("booking_events", json.dumps(booking_event).encode("utf-8"))
+        # Find the associated table
+        table = await db.tables.find_one({"_id": booking['table_id']})
+        if not table:
+            raise HTTPException(status_code=404, detail="Table not found")
 
-    return {"status": "Booking confirmed", "table_id": booking_request.table_id, "datetime": booking_request.datetime}
+        # Clear the booking id from the table and set status to AVAILABLE
+        result = await db.tables.find_one_and_update(
+            {"_id": booking['table_id']},
+            {"$set": {"status": "AVAILABLE", "booking_id": None, "updated_at": datetime.utcnow()}},
+            return_document=ReturnDocument.AFTER
+        )
 
+        # Mark booking as closed or cancelled
+        await db.bookings.update_one(
+            {"_id": booking_id},
+            {"$set": {"status": "CANCELLED", "updated_at": datetime.utcnow()}}
+        )
 
-# Endpoint to fetch all bookings made by a user
-@app.get("/user/{user_id}/bookings/")
-async def get_user_bookings(user_id: str, token: str = Depends(oauth2_scheme)):
-    user = await get_user_by_email(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        return {"message": "Booking cleared and table status set to AVAILABLE", "table": result}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
-    bookings = await db.bookings.find({"user_id": user["_id"]}).to_list(length=100)
-    return {"user": user, "bookings": bookings}
+# Update table details by table ID
+@app.put("/update_table/{table_id}")
+async def update_table(table_id: str, status: Optional[str] = None, number_of_seats: Optional[int] = None):
+    try:
+        # Prepare the update fields
+        update_fields = {}
+        if status:
+            if status not in ["AVAILABLE", "BLOCKED"]:
+                raise HTTPException(status_code=400, detail="Invalid status")
+            update_fields["status"] = status
+        if number_of_seats:
+            update_fields["number_of_seats"] = number_of_seats
+        
+        update_fields["updated_at"] = datetime.utcnow()  # Keep track of update time
+
+        # Update the table in the database
+        updated_table = await db.tables.update_one(
+            {"_id": table_id},
+            {"$set": update_fields}
+        )
+
+        if not updated_table:
+            raise HTTPException(status_code=404, detail="Table not found")
+
+        return {"message": "Table updated successfully", "table": updated_table}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/tables/")
+async def create_table(table: TableModel):
+    try:
+        table_id = generate_custom_id("TABLE")
+
+        table_data = {
+            "_id": table_id,
+            "restaurant_id": table.restaurant_id,
+            "seats": table.seats,
+            "status": "AVAILABLE",  # Default new tables as available
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow()
+        }
+
+        await db.tables.insert_one(table_data)
+
+        return {"message": "Table created successfully", "table_id": table_id}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating table: {str(e)}")
+
+@app.get("/tables/")
+async def get_tables(restaurant_id: str):
+    try:
+        tables = await db.tables.find({"restaurant_id": restaurant_id}).to_list(100)
+
+        if not tables:
+            raise HTTPException(status_code=404, detail="No tables found for the restaurant")
+
+        return {"tables": tables}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching tables: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

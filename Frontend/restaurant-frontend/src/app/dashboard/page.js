@@ -2,6 +2,8 @@
 "use client"; // Make this a Client Component
 
 import { useAuth } from '../AuthContext';
+import TableSelection from '../../components/TableSelection'; // Adjust the path based on your file structure
+
 import Image from 'next/image';
 
 const Dashboard = () => {
@@ -28,6 +30,7 @@ const Dashboard = () => {
           width={128} // Set width
           height={128} // Set height
           className="border-2 border-gray-300 shadow-md mr-4 rounded-lg"
+          priority // This ensures the image is prioritized during loading
         />
         <div>
           <h1 className="text-2xl font-bold">{`Welcome, ${user.name}!`}</h1>
@@ -39,6 +42,11 @@ const Dashboard = () => {
       <div className="mt-4">
         <h2 className="text-xl font-semibold">About You</h2>
         <p className="text-gray-500">Add some additional info here if needed.</p>
+      </div>
+
+      <div className="container mx-auto p-4">
+        <h1 className="text-3xl font-bold mb-6">Table Selection</h1>
+        <TableSelection />
       </div>
     </div>
 
