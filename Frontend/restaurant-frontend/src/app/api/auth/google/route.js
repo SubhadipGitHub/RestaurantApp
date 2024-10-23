@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import * as cookie from 'cookie'; // Import everything from cookie
 import fetch from 'node-fetch'; // Ensure node-fetch is installed
@@ -50,22 +51,9 @@ export async function GET(req) {
 
     const userInfo = await userInfoResponse.json();
 
-    // Store user info in cookie
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-      maxAge: 60 * 60 * 24, // 1 day
-      path: '/',
-    };
-
-    // Create a cookie string
-    const userCookie = cookie.serialize('user', JSON.stringify(userInfo), cookieOptions);
-
     // After handling the login, redirect to the dashboard
     const redirectUrl = `http://localhost:3000/dashboard`;
     const res = NextResponse.redirect(redirectUrl);
-
-    res.headers.append('Set-Cookie', userCookie); // Set the cookie in the response headers
 
     return res;
   } catch (error) {

@@ -1,4 +1,3 @@
-// src/app/login/page.js
 "use client";
 
 import { useState } from "react";
@@ -8,14 +7,16 @@ export default function GoogleSignIn() {
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
-    const googleSignInURL = `https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}&redirect_uri=http://localhost:3000/api/auth/google&scope=openid%20profile%20email&access_type=offline`;
+    const googleSignInURL = `https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=${process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_FASTAPI}&scope=openid%20profile%20email&access_type=offline`;
+    
+    // Redirect to Google Sign-In
     window.location.href = googleSignInURL;
   };
 
   return (
     <div
       className="flex items-center justify-center h-screen bg-cover bg-center"
-      style={{ backgroundImage: "url('/images/restaurant-bg.jpg')" }}
+      style={{ backgroundImage: "url('/images/restaurant-bg.jpeg')" }}
     >
       <div className="bg-white bg-opacity-80 p-8 rounded-lg shadow-lg flex flex-col items-center max-w-lg w-full">
         {/* Logo */}

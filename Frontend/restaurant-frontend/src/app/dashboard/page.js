@@ -1,12 +1,16 @@
 // src/app/dashboard/page.js
 "use client"; // Make this a Client Component
 
-import { useAuth } from '../AuthContext'; // Import the useAuth hook
+import { useAuth } from '../AuthContext';
+import Image from 'next/image';
 
 const Dashboard = () => {
-  const { isLoggedIn, user, logout } = useAuth(); // Use the authentication context
+  const { isLoggedIn, user, logout } = useAuth();
 
-  if (!isLoggedIn) {
+  console.log("isLoggedIn:", isLoggedIn);
+  console.log("user:", user);
+
+  if (!isLoggedIn || !user) {
     return (
       <div className="flex items-center justify-center h-screen">
         <p className="text-xl">Please log in to access the dashboard.</p>
@@ -15,17 +19,29 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="p-6 bg-white rounded shadow-md">
-      <h1 className="text-2xl font-bold mb-4">Welcome, {user?.name}!</h1>
-      <p className="text-lg mb-2">Email: {user?.email}</p>
-      <p className="text-lg mb-4">User ID: {user?.id}</p>
-      <button
-        onClick={logout}
-        className="mt-4 bg-red-500 text-white px-4 py-2 rounded transition duration-300 hover:bg-red-600"
-      >
-        Logout
-      </button>
+    <div className="p-6 bg-white rounded-lg shadow-md max-w-3xl mx-auto mt-10">
+      {/* Profile Image */}
+      <div className="flex items-center mb-4">
+        <Image
+          src={user.picture || '/images/default-profile.png'} // Ensure the default image path is correct
+          alt="Profile Picture"
+          width={128} // Set width
+          height={128} // Set height
+          className="border-2 border-gray-300 shadow-md mr-4 rounded-lg"
+        />
+        <div>
+          <h1 className="text-2xl font-bold">{`Welcome, ${user.name}!`}</h1>
+          <p className="text-lg text-gray-600">{`Email: ${user.email}`}</p>
+          <p className="text-lg text-gray-600">{`User ID: ${user.id}`}</p>
+        </div>
+      </div>
+      {/* Additional Info Section (optional) */}
+      <div className="mt-4">
+        <h2 className="text-xl font-semibold">About You</h2>
+        <p className="text-gray-500">Add some additional info here if needed.</p>
+      </div>
     </div>
+
   );
 };
 
