@@ -5,30 +5,39 @@ import "./globals.css";
 import Cookies from 'js-cookie';
 import { AuthProvider } from './AuthContext'; // Correct import path for AuthProvider
 import { useEffect, useState } from "react";
-
+import { useRouter} from 'next/navigation'; // Use next/navigation hooks
 
 export default function RootLayout({ children }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(true); // Loading state
+  const router = useRouter(); // Use Next.js router from next/navigation
+
+  const noAuthRoutes = ['/customer']; // Routes that don't require Auth
 
   useEffect(() => {
     const userCookie = Cookies.get('user'); // Get the user cookie
 
-    if (userCookie) {
+    if (userCookie && isLoggedIn==false) {
       setUser(JSON.parse(userCookie)); // Parse and set user data
       setIsLoggedIn(true); // Set logged-in status to true
     }
     setLoading(false); // Set loading to false after checking the cookie
-  }, []);
+  }, [isLoggedIn,user]);
 
   const handleLogout = () => {
     setUser(null);
     setIsLoggedIn(false);
     Cookies.remove('user'); // Remove the user cookie
-    window.location.href = "/"; // Redirect to home
+    router.push("/"); // Redirect to home using router.push from next/navigation
   };
+
+  
+  // Check if the current route is a no-auth route
+  const isNoAuthRoute = noAuthRoutes.includes(router.pathname);
+  console.log("Pathname: ",router.pathname)
+  console.log("isNoAuthRoute: ",isNoAuthRoute)
 
   // Show loading state while checking authentication status
   if (loading) {
@@ -36,13 +45,16 @@ export default function RootLayout({ children }) {
   }
 
   return (
-    
-      <html lang="en">
-        <head>
-          <title>Restaurant Booking App</title>
-        </head>
-        <body className="bg-gray-100 text-gray-800" suppressHydrationWarning={true}>
-        <AuthProvider>
+
+    <html lang="en">
+      <head>
+        <title>Restaurant Booking App</title>
+      </head>
+      <body className="bg-gray-100 text-gray-800" suppressHydrationWarning={true}>
+        {isNoAuthRoute ? (
+          // If it's a no-auth route, don't wrap with AuthContext
+          <div>{children}</div>
+        ) : (<AuthProvider>
           <div className="min-h-screen flex flex-col">
             {/* Navigation Bar */}
             <nav className="bg-white shadow-md">
@@ -101,8 +113,9 @@ export default function RootLayout({ children }) {
               <p className="text-gray-500">&copy; 2024 Restaurant App. All rights reserved.</p>
             </footer>
           </div>
-          </AuthProvider>
-        </body>
-      </html>    
+        </AuthProvider>
+        )}
+      </body>
+    </html>
   );
 }

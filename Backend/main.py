@@ -333,10 +333,9 @@ async def clear_table_booking(booking_id: str):
             raise HTTPException(status_code=404, detail="Table not found")
 
         # Clear the booking id from the table and set status to AVAILABLE
-        result = await db.tables.find_one_and_update(
+        result = await db.tables.update_one(
             {"_id": booking['table_id']},
-            {"$set": {"status": "AVAILABLE", "booking_id": None, "updated_at": datetime.utcnow()}},
-            return_document=ReturnDocument.AFTER
+            {"$set": {"status": "AVAILABLE", "booking_id": None, "updated_at": datetime.utcnow()}}
         )
 
         # Mark booking as closed or cancelled
@@ -361,20 +360,31 @@ async def update_table(table_id: str, status: Optional[str] = None, number_of_se
                 raise HTTPException(status_code=400, detail="Invalid status")
             update_fields["status"] = status
         if number_of_seats:
-            update_fields["number_of_seats"] = number_of_seats
+            update_fields["seats"] = number_of_seats
         
         update_fields["updated_at"] = datetime.utcnow()  # Keep track of update time
 
         # Update the table in the database
-        updated_table = await db.tables.update_one(
+        update_result = await db.tables.update_one(
             {"_id": table_id},
             {"$set": update_fields}
         )
 
-        if not updated_table:
+        # Check if the table was found
+        if update_result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Table not found")
 
-        return {"message": "Table updated successfully", "table": updated_table}
+        # Check if the table was actually modified
+        if update_result.modified_count == 0:
+            return {"message": "No changes made to the table data."}
+
+        # Optionally, fetch the updated table details if needed
+        updated_table = await db.tables.find_one({"_id": table_id})
+
+        return {
+            "message": "Table updated successfully",
+            "table": updated_table  # This will return the updated document
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

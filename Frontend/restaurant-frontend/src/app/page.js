@@ -1,5 +1,3 @@
-"use client"; // Make this a Client Component
-
 import Image from 'next/image';
 
 export default function HomePage() {
