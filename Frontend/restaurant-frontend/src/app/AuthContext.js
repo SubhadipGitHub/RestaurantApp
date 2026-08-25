@@ -1,42 +1,48 @@
+"use client";
 
 // src/app/AuthContext.js
-import { createContext, useContext, useState, useEffect } from 'react';
-import Cookies from 'js-cookie';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Retrieve user data from cookies when the component mounts
-  useEffect(() => {
-    const userCookie = Cookies.get('user');
-    if (userCookie) {
-      setUser(JSON.parse(userCookie));
-      setIsLoggedIn(true);
+  // Auth state comes from the server, not from a cookie this code can read.
+  // The session cookie is HttpOnly by design, so asking the API who we are is
+  // the only honest way to answer it.
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch('/api/backend/me', { cache: 'no-store' });
+      setUser(res.ok ? await res.json() : null);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const login = (userData) => {
-    setUser(userData);
-    setIsLoggedIn(true);
-    Cookies.set('user', JSON.stringify(userData), { expires: 1 });
-  };
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-  const logout = () => {
-    setUser(null);
-    setIsLoggedIn(false);
-    Cookies.remove('user');
-  };
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/backend/logout', { method: 'POST' });
+    } finally {
+      setUser(null);
+      window.location.href = '/';
+    }
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, user, login, logout }}>
+    <AuthContext.Provider
+      value={{ isLoggedIn: Boolean(user), user, loading, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);

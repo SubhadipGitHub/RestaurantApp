@@ -1,310 +1,138 @@
-# 🏨 Restaurant Table Booking App
+# 🍽️ Restaurant Table Booking App
 
-A full-stack, scalable application that allows customers to visualize a restaurant's layout, select available tables for booking, and manage their bookings. Includes features like Google OAuth-based authentication, MongoDB integration for data storage, and Kafka for real-time event streaming.
-
-## 📖 Table of Contents
-
-Overview
-Features
-Tech Stack
-Architecture Diagram
-Flow Diagram
-Project Structure
-Frontend Setup
-Backend Setup
-Database Schema
-Usage
-Environment Variables
-Contributing
-License
-
-## 📋 Overview
-
-The Restaurant Table Booking App provides a seamless booking experience for customers. The application enables users to:
-
-View the layout of the restaurant.
-Select and book available tables for a specific date and time.
-Manage their bookings via an authenticated user profile.
-Real-time notifications and events through Kafka.
+A full-stack table-booking app: sign in with Google, view a restaurant's tables,
+and book one. FastAPI backend, Next.js frontend, MongoDB Atlas for storage.
 
 ## ✨ Features
 
-Visual Table Layout: Customers can see which tables are available and book them.
-Date and Time Picker: Select tables for specific time slots.
-Google OAuth: Secure login system using Google Authentication.
-Profile Management: Users can view their booking history and profile information.
-MongoDB Atlas Integration: Stores user and booking data.
-Kafka Integration: Real-time streaming of booking events.
+- **Google sign-in** with a server-verified, HttpOnly session cookie.
+- **Live table layout** showing seat counts and availability.
+- **Booking** with an atomic table claim, so two people cannot take the same
+  table at once.
+- **Bookings are tied to the signed-in user** — identity comes from the session,
+  never from the request body.
 
-## 🛠️ Tech Stack
+## 🛠️ Tech stack
 
-### Frontend:
-React: Frontend library for building user interfaces.
-Google OAuth: Authentication mechanism.
-Axios: For API calls.
+**Frontend** — Next.js 15 (App Router), React 18, Tailwind CSS 3
+**Backend** — FastAPI, Motor (async MongoDB), python-jose
+**Data** — MongoDB Atlas
+**Hosting** — Vercel (frontend) + Render (backend)
 
-### Backend:
-FastAPI: Python-based web framework.
-MongoDB Atlas: Cloud database for storing user and booking data.
-Kafka: Streaming platform for event handling.
-
-## 🗺️ Architecture Diagram
-
-Architecture Overview:
-
-Frontend (React) communicates with Backend (FastAPI).
-Backend interacts with MongoDB for storing user and booking data.
-Kafka handles event streaming.
-Google OAuth is used for secure login and session handling.
-
-## 📊 Flow Diagram
-
-Booking Flow:
-
-User logs in via Google OAuth.
-User views the restaurant layout and selects a table.
-Date and time for booking are selected.
-Upon confirmation, booking details are stored in MongoDB.
-Kafka streams booking events for real-time updates.
-
-## 📂 Project Structure
-
-### Frontend (React)
+## 📂 Project structure
 
 ```
-/client
-├── public
-│   ├── index.html
-│   └── manifest.json
-├── src
-│   ├── components
-│   │   ├── BookingLayout.js        # Layout and table view
-│   │   ├── Table.js                # Table component
-│   │   ├── DateTimePicker.js       # DateTime picker component
-│   │   ├── BookingConfirmation.js  # Booking confirmation modal
-│   │   └── Profile.js              # User profile and booking history
-│   ├── api
-│   │   └── booking.js              # API calls for booking
-│   ├── context
-│   │   └── AuthContext.js          # Authentication management with Google OAuth
-│   ├── App.js                      # Main app component
-│   └── index.js                    # ReactDOM render
-├── .env                             # Environment variables
-└── package.json                     # Project dependencies
+.
+├── Backend/                     # FastAPI service
+│   ├── main.py                  # Routes: auth, bookings, tables
+│   ├── auth.py                  # Session tokens + the auth dependency
+│   ├── config.py                # Env loading with fail-fast validation
+│   ├── seed.py                  # Create a restaurant's initial tables
+│   ├── smoke_test.py            # Offline auth/hardening checks
+│   ├── Dockerfile
+│   └── requirements.txt
+├── Frontend/restaurant-frontend/   # Next.js app (note: one level deep)
+│   ├── next.config.mjs          # Same-origin rewrite to the backend
+│   └── src/
+│       ├── app/                 # Routes: /, /login, /dashboard, /customer
+│       │   └── AuthContext.js   # Auth state, sourced from GET /me
+│       └── components/          # AppShell, TableSelection, Table
+├── render.yaml                  # Render Blueprint for the backend
+└── DEPLOYMENT.md                # Full deployment runbook
 ```
 
-### Backend (FastAPI)
+## 🏗️ Architecture
+
+The browser only ever talks to the frontend origin. Next.js rewrites
+`/api/backend/*` through to the FastAPI service, which removes CORS from the
+picture and keeps the session cookie first-party.
 
 ```
-/server
-├── app
-│   ├── main.py                      # FastAPI app entry point
-│   ├── auth.py                      # Google OAuth logic
-│   ├── models.py                    # MongoDB schema (User, Booking)
-│   ├── routes
-│   │   ├── booking.py               # Booking routes
-│   │   └── user.py                  # User profile routes
-│   ├── services
-│   │   └── kafka_producer.py        # Kafka event producer
-│   └── utils.py                     # Helper functions (Google token verification)
-├── .env                              # Environment variables
-└── requirements.txt                  # Python dependencies
+Browser ──► Next.js (Vercel) ──rewrite──► FastAPI (Render) ──► MongoDB Atlas
 ```
 
-⚙️ Frontend Setup
+Sign-in flow:
 
-## Prerequisites
-Node.js installed.
-Google OAuth credentials (Client ID and Secret).
-Installation Steps
-Clone the repository:
+1. The user hits `/api/backend/login/google`; the backend mints an OAuth `state`
+   and redirects to Google.
+2. Google returns to `/api/backend/auth/google`, which verifies `state`,
+   exchanges the code, and upserts the user.
+3. The backend issues **its own** JWT as an `HttpOnly; Secure; SameSite=Lax`
+   cookie and redirects to `/dashboard`. No token ever appears in a URL.
 
-```
-git clone https://github.com/SubhadipGitHub/RestaurantApp.git
-cd restaurant-booking-app/client
-```
+## 🚀 Getting started
 
-## Install dependencies:
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for the full runbook — MongoDB Atlas
+setup, the Google OAuth client, and deploying both services.
 
-```
-npm install
-Create .env file in the root of the client directory and add:
-```
+Local development in short:
 
-env
-```
-REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id
-REACT_APP_BACKEND_URL=http://localhost:8000
-```
-
-## Run the development server:
-
-```
-npm start
-```
-
-Access the app: Visit http://localhost:3000 in your browser.
-
-## ⚙️ Backend Setup
-
-Prerequisites
-
-```
-Python 3.7+
-MongoDB Atlas account
-Kafka installed locally or through a cloud service.
-```
-
-## Installation Steps
-Clone the repository:
-
-```
-git clone https://github.com/yourusername/restaurant-booking-app.git
-cd restaurant-booking-app/server
-```
-
-1. Create a Conda Environment
-Open your terminal or command prompt and run the following command to create a new conda environment:
-
-```
-conda create -n restoappenv python=3.9
-```
-
-2. Activate the Conda Environment
-Once the environment is created, activate it with:
-
-```
-conda activate restoappenv
-```
-
-3. Prepare requirements.txt
-Ensure that your requirements.txt file contains the necessary dependencies, like:
-
-```
-fastapi
-uvicorn
-google-auth
-pymongo
-dnspython
-motor
-pydantic
-aiokafka
-requests
-python-dotenv
-```
-
-4. Install Dependencies using requirements.txt
-Run the following command to install all the dependencies listed in requirements.txt using pip within the restoappenv environment:
-
-```
+```bash
+# Backend
+cd Backend
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env          # fill in; set COOKIE_SECURE=false for local HTTP
+uvicorn main:app --reload --port 8000
+
+# Frontend, in another shell
+cd Frontend/restaurant-frontend
+npm install
+cp .env.example .env.local
+npm run dev                   # http://localhost:3000
 ```
 
-5. Verify the Environment Setup
-You can verify that everything is set up correctly by running:
+Then seed some tables: `python Backend/seed.py --restaurant-id tst1 --count 6`
 
-```
-conda list
-```
+## 🔌 API
 
-This should display all installed packages, including Python 3.9 and the ones listed in requirements.txt.
+All paths are reachable from the frontend as `/api/backend/...`.
 
-6. Create .env file in the root of the server directory:
+| Method | Path | Auth | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/health` | — | Liveness probe |
+| `GET` | `/login/google` | — | Redirect to Google's consent screen |
+| `GET` | `/auth/google` | — | OAuth callback; sets the session cookie |
+| `GET` | `/me` | ✅ | The signed-in user |
+| `POST` | `/logout` | — | Clear the session cookie |
+| `GET` | `/tables?restaurant_id=` | — | List a restaurant's tables |
+| `POST` | `/tables` | ✅ | Create a table |
+| `PUT` | `/update_table/{id}` | ✅ | Change status or seat count |
+| `GET` | `/bookings` | ✅ | The caller's own bookings |
+| `POST` | `/bookings` | ✅ | Book a table |
+| `PUT` | `/bookings/{id}` | ✅ | Update a booking |
+| `PUT` | `/clear_table_booking/{id}` | ✅ | Cancel and release the table |
 
-env
-```
-MONGO_USERNAME=mongo-db-user
-MONGO_PASSWORD=mongo-db-password
-MONGO_CLUSTER_URL=cluster-link
-MONGO_DB_NAME=db-name
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-KAFKA_SERVER=localhost:9092
-SECRET_KEY=your-random-secret-key
-```
+Interactive docs are available at `/docs` when `ENABLE_DOCS=true`. They are off
+by default, since they enumerate every mutation endpoint.
 
-7. Run the FastAPI server:
+## 🗃️ Data model
 
-```
-uvicorn main:app --reload
-```
+**users** — `_id` (`USER_<hex>`), `email`, `name`, `picture`, `created_at`, `last_login`
 
-8. Access API documentation: 
-Visit http://localhost:8000/docs for interactive API documentation.
+**tables** — `_id` (`TABLE_<hex>`), `restaurant_id`, `label`, `seats`,
+`status` (`AVAILABLE` | `BLOCKED` | `OCCUPIED`), `booking_id`
 
-## 🗃️ Database Schema
+**bookings** — `_id` (`BOOKING_<hex>`), `restaurant_id`, `table_id`,
+`no_of_people`, `time_slot`, `customer_name`, `customer_email`,
+`status` (`PENDING` | `CONFIRMED` | `CANCELLED`)
 
-User Collection:
-json
-```
-{
-  "_id": "ObjectId",
-  "name": "string",
-  "email": "string",
-  "google_id": "string",
-  "bookings": [
-    {
-      "table_id": "string",
-      "date": "datetime",
-      "time": "string"
-    }
-  ]
-}
-```
+## ⚠️ Known limitations
 
-Booking Collection:
-json
-```
-{
-  "_id": "ObjectId",
-  "user_id": "ObjectId",
-  "table_id": "string",
-  "date": "datetime",
-  "time": "string"
-}
-```
-
-## 🛠️ Usage
-
-Google OAuth: Users log in through Google, and the OAuth token is verified by the backend.
-Table Booking: After logging in, users can select tables, pick a time, and confirm bookings.
-Profile Management: Users can view and manage their bookings in the profile section.
-Kafka Streaming: Booking events are handled in real-time using Kafka.
-
-## 🔐 Environment Variables
-To run this project, you will need to set the following environment variables in both client/.env and server/.env:
-
-### Frontend (client/.env):
-
-env
-```
-REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id
-REACT_APP_BACKEND_URL=http://localhost:8000
-```
-
-### Backend (server/.env):
-
-env
-```
-MONGO_URI=your-mongo-atlas-uri
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-KAFKA_SERVER=localhost:9092
-SECRET_KEY=your-random-secret-key
-```
+- **Availability ignores `time_slot`.** A booked table stays `OCCUPIED` until
+  explicitly released, so it is a "claimed until released" model rather than a
+  time-slotted one. Real interval-based availability is the top follow-up.
+- **Test coverage** is limited to `Backend/smoke_test.py`, which checks auth and
+  hardening behaviour but not persistence.
 
 ## 🤝 Contributing
 
-Contributions are welcome! If you have suggestions or want to contribute to this project:
-
-Fork the repository.
-Create your feature branch (git checkout -b feature/YourFeature).
-Commit your changes (git commit -m 'Add some feature').
-Push to the branch (git push origin feature/YourFeature).
-Open a pull request.
+Fork, branch, and open a pull request.
 
 ## 📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+
+MIT — see [LICENSE](./LICENSE).
 
 ## 📧 Contact
-For any queries, feel free to reach out to the project maintainer: subhadip.dutta.18@gmail.com
+
+subhadip.dutta.18@gmail.com

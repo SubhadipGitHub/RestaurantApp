@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
-import { QRCode } from 'react-qr-code'; // Importing react-qr-code
+import { useState, useEffect, Suspense } from "react";
+import QRCode from 'react-qr-code';
 import { useSearchParams } from 'next/navigation';
 import { FaFacebookF, FaTwitter, FaInstagram, FaPrint } from 'react-icons/fa'; // Importing social icons
 
-const Customer = () => {
+const CustomerContent = () => {
   const [tableUrl, setTableUrl] = useState("");
   const searchParams = useSearchParams();
   const tableId = searchParams.get('tableId');
@@ -25,8 +25,9 @@ const Customer = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 p-6">
       <div className="bg-white shadow-md rounded-lg p-6 max-w-md w-full">
         <h1 className="text-3xl font-bold text-center mb-4">Restaurant Name</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/path/to/your/booking-image.jpg" // Replace with your image path
+          src="/images/restaurant-hero.jpg"
           alt="Online Booking"
           className="w-full h-48 object-cover rounded-md mb-4"
         />
@@ -62,5 +63,13 @@ const Customer = () => {
     </div>
   );
 }
+
+const Customer = () => (
+  // useSearchParams() requires a Suspense boundary, otherwise `next build`
+  // fails when it tries to statically prerender this route.
+  <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+    <CustomerContent />
+  </Suspense>
+);
 
 export default Customer;
