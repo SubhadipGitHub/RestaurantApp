@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A newer push supersedes an in-flight run on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend/restaurant-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: Frontend/restaurant-frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: Frontend/restaurant-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # ubuntu-latest is case-sensitive, which is the point: an import whose
+      # casing does not match the file passes on macOS and fails here.
+      - name: Build
+        run: npm run build
+
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: Backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile check
+        run: python -m compileall -q .
+
+      # Covers auth and hardening behaviour in-process; needs no database.
+      - name: Smoke test
+        run: python smoke_test.py
+
+  docker:
+    name: Backend image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same context and dockerfile path that render.yaml uses.
+      - name: Build image
+        run: docker build -f Backend/Dockerfile -t restaurantapp-api Backend
+
+      - name: Container serves /health
+        run: |
+          docker run -d --name api -p 8000:8000 \
+            -e MONGO_URI=mongodb://localhost:27017 \
+            -e MONGO_DB_NAME=restoDB \
+            -e GOOGLE_CLIENT_ID=ci-client-id \
+            -e GOOGLE_CLIENT_SECRET=ci-client-secret \
+            -e GOOGLE_CLIENT_REDIRECT=http://localhost:3000/api/backend/auth/google \
+            -e FRONTEND_URL=http://localhost:3000 \
+            -e SECRET_KEY=ci-secret-key \
+            -e COOKIE_SECURE=false \
+            -e ENABLE_DOCS=false \
+            restaurantapp-api
+
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health > /dev/null; then
+              echo "Container is serving /health"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Container did not become healthy in time:"
+          docker logs api
+          exit 1
+
+      # Misconfiguration must surface as our own ConfigError naming what is
+      # missing, never as an opaque TypeError from deep inside a URL-encoding
+      # call. Asserted on that behaviour rather than on exact wording, so
+      # rephrasing a message does not fail the build.
+      - name: Misconfiguration fails with a readable error
+        run: |
+          assert_config_error() {
+            local label="$1"; shift
+            local out
+            out=$(docker run --rm "$@" restaurantapp-api python -c "import config" 2>&1 || true)
+            if echo "$out" | grep -q "TypeError"; then
+              echo "FAIL [$label]: opaque TypeError instead of ConfigError"
+              echo "$out"
+              return 1
+            fi
+            if ! echo "$out" | grep -q "ConfigError"; then
+              echo "FAIL [$label]: no ConfigError raised"
+              echo "$out"
+              return 1
+            fi
+            echo "ok [$label]: $(echo "$out" | tail -1)"
+          }
+
+          assert_config_error "nothing configured"
+          assert_config_error "partial mongo config" -e MONGO_USERNAME=someuser
+          assert_config_error "mongo set, session key missing" \
+            -e MONGO_URI=mongodb://localhost:27017 \
+            -e GOOGLE_CLIENT_ID=a -e GOOGLE_CLIENT_SECRET=b \
+            -e GOOGLE_CLIENT_REDIRECT=c -e FRONTEND_URL=d
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker logs api || true

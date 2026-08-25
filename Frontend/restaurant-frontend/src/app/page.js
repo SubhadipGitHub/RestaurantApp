@@ -15,7 +15,7 @@ export default function HomePage() {
             Experience the best dining and table booking service
           </p>
           <a
-            href="/book-table"
+            href="/dashboard"
             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300"
           >
             Book a Table

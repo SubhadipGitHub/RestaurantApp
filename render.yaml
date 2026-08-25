@@ -1,0 +1,39 @@
+# Render Blueprint. Create the service via Render > New > Blueprint, which
+# reads this file and prompts for the values marked `sync: false`.
+services:
+  - type: web
+    name: restaurantapp-api
+    runtime: docker
+    # 'free' spins down after ~15 minutes idle, giving a ~50s cold start on the
+    # next request. The login page warms the API before enabling its button, so
+    # this is survivable -- switch to 'starter' to remove the delay entirely.
+    plan: free
+    # Singapore is Render's closest region to the Atlas cluster in AWS
+    # ap-south-1 (Mumbai). Running this in a US region puts a cross-planet
+    # round trip on every database call.
+    region: singapore
+    dockerfilePath: ./Backend/Dockerfile
+    dockerContext: ./Backend
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: MONGO_DB_NAME
+        value: restoDB
+      - key: ENABLE_DOCS
+        value: "false"
+      - key: COOKIE_SECURE
+        value: "true"
+      # Render generates a strong value; it never appears in the repo.
+      - key: SECRET_KEY
+        generateValue: true
+      # Prompted for in the dashboard on first apply.
+      - key: MONGO_URI
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_REDIRECT
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

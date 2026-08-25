@@ -1,0 +1,206 @@
+# Deployment
+
+Frontend on **Vercel**, backend as a Docker container on **Render**, data in
+**MongoDB Atlas**.
+
+## Topology
+
+The browser only ever talks to the Vercel origin. `next.config.mjs` rewrites
+`/api/backend/*` to the Render service, which means:
+
+- no CORS to configure — same origin from the browser's point of view;
+- the session cookie is **first-party** (`SameSite=Lax`), rather than a
+  cross-site cookie that Safari and Chrome increasingly refuse to send;
+- the Google OAuth callback lands on the same origin that holds the session.
+
+```
+Browser ──► https://<app>.vercel.app              (Next.js)
+              │ /api/backend/*  ──rewrite──►  https://<api>.onrender.com/*   (FastAPI)
+                                                        └──►  MongoDB Atlas
+```
+
+Two consequences worth remembering:
+
+- **`BACKEND_URL` is read at build time.** Changing it on Vercel requires a
+  redeploy, not just saving the variable.
+- **Vercel preview deployments get unique URLs** that are not registered with
+  Google, so OAuth only works on the production domain unless you add each
+  preview URL to the OAuth client by hand.
+
+## Environment variables
+
+### Backend (Render)
+
+| Variable | Example | Notes |
+| --- | --- | --- |
+| `MONGO_URI` | `mongodb+srv://user:pw@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority` | Straight from Atlas's Connect dialog |
+| `MONGO_DB_NAME` | `restoDB` | |
+| `GOOGLE_CLIENT_ID` | `…apps.googleusercontent.com` | |
+| `GOOGLE_CLIENT_SECRET` | `GOCSPX-…` | Backend only — never exposed to the browser |
+| `GOOGLE_CLIENT_REDIRECT` | `https://<app>.vercel.app/api/backend/auth/google` | Must match Google exactly |
+| `FRONTEND_URL` | `https://<app>.vercel.app` | Post-sign-in redirect target |
+| `SECRET_KEY` | generated | Session signing key |
+| `COOKIE_SECURE` | `true` | `false` only for local HTTP |
+| `ENABLE_DOCS` | `false` | Gates `/docs` and `/openapi.json` |
+| `PORT` | — | Injected by Render; do not set |
+
+`MONGO_USERNAME` / `MONGO_PASSWORD` / `MONGO_CLUSTER_URL` are still accepted as
+an alternative to `MONGO_URI` if you prefer supplying the parts separately.
+
+### Frontend (Vercel)
+
+| Variable | Example | Notes |
+| --- | --- | --- |
+| `BACKEND_URL` | `https://<api>.onrender.com` | **Not** `NEXT_PUBLIC_`. Build-time. |
+| `NEXT_PUBLIC_RESTAURANT_ID` | `REST_001` | Which restaurant this deployment shows. Matches the id already present in `restoDB`; changing it means seeding tables under the new id too, or the dashboard renders empty. |
+
+## First deploy
+
+Google needs the Vercel URL, Render needs the Vercel URL, and Vercel needs the
+Render URL. Break the cycle by deploying Vercel first with a placeholder.
+
+### 1. MongoDB Atlas
+
+This deploys against the existing **`ClusterResto`** cluster in the
+**`RestoProject`** project (`clusterresto.tas9w.mongodb.net`, AWS ap-south-1).
+Render is set to `singapore` in `render.yaml` to sit near it.
+
+Already in place, nothing to do:
+
+- **Network access** — `0.0.0.0/0` is allowed. Render offers no static outbound
+  IP on the free or starter tiers, so an allowlist is not viable; the database
+  user's password is the real control.
+
+Still required:
+
+1. **Resume the cluster.** Free (M0) clusters auto-pause after prolonged idle
+   and **cannot be resumed through the API** — Atlas rejects it with
+   *"Cannot update a M0/M2/M5 cluster through the public API."* Open the cluster
+   in the Atlas UI and click **Resume**. It takes a few minutes to reach `IDLE`.
+2. **Add an application database user.** The existing `RESTO_ADMIN` user holds
+   `atlasAdmin` on `admin`, which is far broader than this app needs, and Atlas
+   never reveals an existing user's password. Under **Database Access → Add New
+   Database User**, create a user with **Read and write to any database**
+   (or, better, scoped to `restoDB` only), autogenerate the password, and save
+   it — it is shown once.
+3. **Connect → Drivers → Python** and copy the connection string, substituting
+   that password. The whole string is your `MONGO_URI`:
+
+   ```
+   mongodb+srv://<user>:<password>@clusterresto.tas9w.mongodb.net/?retryWrites=true&w=majority
+   ```
+
+### 2. Google Cloud OAuth
+
+1. Create a project → **APIs & Services → OAuth consent screen** → *External*.
+2. Add your own address under **Test users** and leave the app in **Testing**.
+   Publishing triggers a verification review you do not want for a hobby app;
+   Testing supports up to 100 listed users.
+3. **Credentials → Create OAuth client ID → Web application**. Save the Client
+   ID and Client Secret. Leave the redirect URIs empty for now — you fill them
+   in at step 5, once the Vercel URL exists.
+
+### 3. Vercel
+
+Import the repo and set **Root Directory to `Frontend/restaurant-frontend`**.
+This is not optional: the `Frontend/package.json` one level up is a stub with no
+build script, and a deploy rooted there produces nothing.
+
+Set `BACKEND_URL=https://placeholder.invalid` and
+`NEXT_PUBLIC_RESTAURANT_ID=REST_001`, deploy, and note the production URL.
+
+Check **Settings → Deployment Protection**: production must stay public, or the
+Google callback will hit an authentication wall.
+
+### 4. Render
+
+**New → Blueprint**, point it at the repo, and it reads `render.yaml`. Fill in
+the prompted values using the Vercel URL from step 3. Note the assigned
+`https://<api>.onrender.com`.
+
+Verify: `curl https://<api>.onrender.com/health` → `{"status":"ok"}`.
+
+### 5. Close the loop
+
+- **Google console** → add `https://<app>.vercel.app/api/backend/auth/google` as
+  an Authorized redirect URI and `https://<app>.vercel.app` as an Authorized
+  JavaScript origin.
+- **Vercel** → set `BACKEND_URL` to the Render URL and **redeploy**.
+
+### 6. Seed the tables
+
+A fresh database has no tables, so the dashboard is empty and a booking has
+nothing to claim. From the Render shell:
+
+```bash
+python seed.py --restaurant-id REST_001 --count 6 --seats 4
+```
+
+It is idempotent — re-running it leaves existing tables alone.
+
+## Local development
+
+```bash
+# Backend
+cd Backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env          # then fill it in; set COOKIE_SECURE=false
+uvicorn main:app --reload --port 8000
+
+# Frontend
+cd Frontend/restaurant-frontend
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+Add `http://localhost:3000/api/backend/auth/google` to the OAuth client's
+redirect URIs for local sign-in to work.
+
+## Verifying a deploy
+
+```bash
+# API is up
+curl https://<api>.onrender.com/health
+
+# The rewrite works
+curl https://<app>.vercel.app/api/backend/health
+
+# Business endpoints reject anonymous callers
+curl -X POST https://<app>.vercel.app/api/backend/bookings \
+  -H 'Content-Type: application/json' -d '{}'          # expect 401
+
+# API docs are not public
+curl https://<api>.onrender.com/docs                    # expect 404
+```
+
+Then in a browser:
+
+1. Sign in with Google; you should land on `/dashboard`.
+2. In DevTools → Application → Cookies, confirm `session` is **HttpOnly** and
+   **Secure**, and that no token ever appeared in the URL bar.
+3. The dashboard lists the seeded tables with seat counts.
+4. Pick a date/time and party size, click a green table — it turns red and you
+   get a booking reference.
+
+The backend's own behaviour can be checked offline at any time, no database
+required:
+
+```bash
+cd Backend && python smoke_test.py
+```
+
+## Known limitations
+
+- **Bookings ignore `time_slot` for availability.** A table is claimed at
+  booking and stays `OCCUPIED` until `PUT /clear_table_booking/{id}` releases
+  it. There is no "free at 7pm, taken at 8pm" model, so this is effectively a
+  "claimed until released" system. Adding real interval-based availability is
+  the most valuable next change.
+- **Render's free tier sleeps.** The login page warms the API before enabling
+  its button, which hides most of the delay.
+- **The Atlas cluster is also free tier**, so it auto-pauses after prolonged
+  idle and has to be resumed from the UI — the API cannot do it for M0.
+- **No automated test suite** beyond `smoke_test.py`, which covers auth and
+  hardening behaviour but not persistence.

@@ -1,20 +1,25 @@
 import React from 'react';
 
-const Table = ({ table, onSelect, selectedTime }) => {
-  const isAvailable = table.status === 'available';
+const Table = ({ table, onSelect, selectedTime, busy }) => {
+  // The API reports status in upper case: AVAILABLE | BLOCKED | OCCUPIED.
+  const isAvailable = table.status === 'AVAILABLE';
 
   const handleClick = () => {
-    onSelect(table.id, isAvailable);
+    if (busy) return;
+    onSelect(table._id, isAvailable);
   };
 
   return (
-    <div 
-      className={`p-4 border rounded-lg cursor-pointer ${isAvailable ? 'bg-green-200' : 'bg-red-200'}`} 
+    <div
+      className={`p-4 border rounded-lg ${
+        busy ? 'opacity-60 cursor-wait' : 'cursor-pointer'
+      } ${isAvailable ? 'bg-green-200' : 'bg-red-200'}`}
       onClick={handleClick}
     >
-      <h3 className="text-lg font-bold">Table {table.number}</h3>
+      <h3 className="text-lg font-bold">Table {table.label || table._id}</h3>
+      <p>Seats: {table.seats}</p>
       <p>Status: {table.status}</p>
-      {isAvailable && selectedTime && <p>Selected Time: {selectedTime}</p>}
+      {isAvailable && selectedTime && <p>Selected: {selectedTime}</p>}
     </div>
   );
 };
