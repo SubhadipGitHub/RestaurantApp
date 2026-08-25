@@ -32,6 +32,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # A critical advisory in a shipped dependency is a deploy blocker, not a
+      # style nit: Vercel refuses to build a Next.js version with a known CVE,
+      # so catching it here beats finding out at deploy time. Scoped to
+      # critical only -- lower thresholds turn red on transitive advisories
+      # that no change in this repo introduced or can fix.
+      - name: Audit dependencies
+        run: npm audit --audit-level=critical
+
       # ubuntu-latest is case-sensitive, which is the point: an import whose
       # casing does not match the file passes on macOS and fails here.
       - name: Build
