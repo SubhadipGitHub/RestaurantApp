@@ -98,19 +98,35 @@ jobs:
           docker logs api
           exit 1
 
-      # Missing configuration must fail with a named variable rather than an
-      # opaque TypeError raised during import.
-      - name: Missing config fails with a readable error
+      # Misconfiguration must surface as our own ConfigError naming what is
+      # missing, never as an opaque TypeError from deep inside a URL-encoding
+      # call. Asserted on that behaviour rather than on exact wording, so
+      # rephrasing a message does not fail the build.
+      - name: Misconfiguration fails with a readable error
         run: |
-          output=$(docker run --rm restaurantapp-api \
-            python -c "import config" 2>&1 || true)
-          echo "$output"
-          if echo "$output" | grep -q "Required environment variable"; then
-            echo "Startup validation reports the missing variable"
-          else
-            echo "Expected a ConfigError naming the missing variable"
-            exit 1
-          fi
+          assert_config_error() {
+            local label="$1"; shift
+            local out
+            out=$(docker run --rm "$@" restaurantapp-api python -c "import config" 2>&1 || true)
+            if echo "$out" | grep -q "TypeError"; then
+              echo "FAIL [$label]: opaque TypeError instead of ConfigError"
+              echo "$out"
+              return 1
+            fi
+            if ! echo "$out" | grep -q "ConfigError"; then
+              echo "FAIL [$label]: no ConfigError raised"
+              echo "$out"
+              return 1
+            fi
+            echo "ok [$label]: $(echo "$out" | tail -1)"
+          }
+
+          assert_config_error "nothing configured"
+          assert_config_error "partial mongo config" -e MONGO_USERNAME=someuser
+          assert_config_error "mongo set, session key missing" \
+            -e MONGO_URI=mongodb://localhost:27017 \
+            -e GOOGLE_CLIENT_ID=a -e GOOGLE_CLIENT_SECRET=b \
+            -e GOOGLE_CLIENT_REDIRECT=c -e FRONTEND_URL=d
 
       - name: Show container logs on failure
         if: failure()
