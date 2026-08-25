@@ -52,7 +52,7 @@ an alternative to `MONGO_URI` if you prefer supplying the parts separately.
 | Variable | Example | Notes |
 | --- | --- | --- |
 | `BACKEND_URL` | `https://<api>.onrender.com` | **Not** `NEXT_PUBLIC_`. Build-time. |
-| `NEXT_PUBLIC_RESTAURANT_ID` | `tst1` | Which restaurant this deployment shows |
+| `NEXT_PUBLIC_RESTAURANT_ID` | `REST_001` | Which restaurant this deployment shows. Matches the id already present in `restoDB`; changing it means seeding tables under the new id too, or the dashboard renders empty. |
 
 ## First deploy
 
@@ -107,7 +107,7 @@ This is not optional: the `Frontend/package.json` one level up is a stub with no
 build script, and a deploy rooted there produces nothing.
 
 Set `BACKEND_URL=https://placeholder.invalid` and
-`NEXT_PUBLIC_RESTAURANT_ID=tst1`, deploy, and note the production URL.
+`NEXT_PUBLIC_RESTAURANT_ID=REST_001`, deploy, and note the production URL.
 
 Check **Settings → Deployment Protection**: production must stay public, or the
 Google callback will hit an authentication wall.
@@ -133,7 +133,7 @@ A fresh database has no tables, so the dashboard is empty and a booking has
 nothing to claim. From the Render shell:
 
 ```bash
-python seed.py --restaurant-id tst1 --count 6 --seats 4
+python seed.py --restaurant-id REST_001 --count 6 --seats 4
 ```
 
 It is idempotent — re-running it leaves existing tables alone.

@@ -82,7 +82,7 @@ cp .env.example .env.local
 npm run dev                   # http://localhost:3000
 ```
 
-Then seed some tables: `python Backend/seed.py --restaurant-id tst1 --count 6`
+Then seed some tables: `python Backend/seed.py --restaurant-id REST_001 --count 6`
 
 ## 🔌 API
 

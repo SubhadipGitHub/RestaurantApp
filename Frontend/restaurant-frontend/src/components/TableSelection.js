@@ -7,7 +7,7 @@ import Table from './Table';
 // the browser attaches the HttpOnly session cookie automatically.
 const API = '/api/backend';
 
-const RESTAURANT_ID = process.env.NEXT_PUBLIC_RESTAURANT_ID || 'tst1';
+const RESTAURANT_ID = process.env.NEXT_PUBLIC_RESTAURANT_ID || 'REST_001';
 
 const TableSelection = () => {
   const [tables, setTables] = useState([]);

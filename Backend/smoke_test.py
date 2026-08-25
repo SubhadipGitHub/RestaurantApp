@@ -61,13 +61,13 @@ def run():
                 c.post(
                     "/bookings",
                     json={
-                        "restaurant_id": "tst1",
+                        "restaurant_id": "REST_001",
                         "no_of_people": 2,
                         "time_slot": "2026-01-01 19:00",
                     },
                 ),
             ),
-            ("POST /tables", c.post("/tables", json={"restaurant_id": "tst1", "seats": 4})),
+            ("POST /tables", c.post("/tables", json={"restaurant_id": "REST_001", "seats": 4})),
             ("PUT /update_table", c.put("/update_table/TABLE_x?status=BLOCKED")),
             ("PUT /bookings/{id}", c.put("/bookings/B_1", json={"status": "CANCELLED"})),
             ("PUT /clear_table_booking/{id}", c.put("/clear_table_booking/B_1")),

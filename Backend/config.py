@@ -42,6 +42,15 @@ MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "restoDB")
 _mongo_uri = os.getenv("MONGO_URI")
 if _mongo_uri:
     MONGO_DB_URL = _mongo_uri
+elif not os.getenv("MONGO_USERNAME"):
+    # Naming MONGO_USERNAME here would send the reader after the fallback form
+    # when MONGO_URI is what the deployment docs tell them to set.
+    raise ConfigError(
+        "No MongoDB connection configured. Set MONGO_URI to the connection "
+        "string from Atlas (Connect > Drivers), or alternatively set "
+        "MONGO_USERNAME, MONGO_PASSWORD and MONGO_CLUSTER_URL. "
+        "See Backend/.env.example."
+    )
 else:
     MONGO_USERNAME = _require("MONGO_USERNAME")
     MONGO_PASSWORD = _require("MONGO_PASSWORD")

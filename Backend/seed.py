@@ -6,7 +6,7 @@ show and a booking cannot find one to claim. This fills that gap once.
 Idempotent -- if the restaurant already has tables, it reports and exits
 without touching them.
 
-    python seed.py                       # 6 tables, 4 seats, restaurant tst1
+    python seed.py                       # 6 tables, 4 seats, restaurant REST_001
     python seed.py --restaurant-id r2 --count 10 --seats 2
 """
 
@@ -17,10 +17,13 @@ from datetime import datetime
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-import config
-
 
 async def seed(restaurant_id: str, count: int, seats: int) -> None:
+    # Imported here rather than at module level: config validates the
+    # environment on import, which would make --help fail on a machine that
+    # has no configuration yet.
+    import config
+
     client = AsyncIOMotorClient(config.MONGO_DB_URL)
     db = client[config.MONGO_DB_NAME]
 
@@ -55,7 +58,7 @@ async def seed(restaurant_id: str, count: int, seats: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--restaurant-id", default="tst1")
+    parser.add_argument("--restaurant-id", default="REST_001")
     parser.add_argument("--count", type=int, default=6)
     parser.add_argument("--seats", type=int, default=4)
     args = parser.parse_args()
