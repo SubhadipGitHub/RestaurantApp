@@ -10,6 +10,9 @@
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
 
 const nextConfig = {
+  // The stub package.json one directory up makes Next guess at the workspace
+  // root, which decides what gets traced into the serverless bundle. Pin it.
+  outputFileTracingRoot: process.cwd(),
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
