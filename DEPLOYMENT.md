@@ -3,6 +3,15 @@
 Frontend on **Vercel**, backend as a Docker container on **Render**, data in
 **MongoDB Atlas**.
 
+## Live deployment
+
+| | |
+| --- | --- |
+| Frontend | https://restaurantapp-subhadipgithubs-projects.vercel.app (Vercel project `restaurantapp`, auto-deploys from `main`) |
+| Backend | not yet deployed — follow *First deploy* below |
+| Database | `restoDB` on `ClusterResto` (`clusterresto.tas9w.mongodb.net`) |
+| Restaurant id | `REST_001` |
+
 ## Topology
 
 The browser only ever talks to the Vercel origin. `next.config.mjs` rewrites
@@ -14,7 +23,7 @@ The browser only ever talks to the Vercel origin. `next.config.mjs` rewrites
 - the Google OAuth callback lands on the same origin that holds the session.
 
 ```
-Browser ──► https://<app>.vercel.app              (Next.js)
+Browser ──► https://restaurantapp-subhadipgithubs-projects.vercel.app              (Next.js)
               │ /api/backend/*  ──rewrite──►  https://<api>.onrender.com/*   (FastAPI)
                                                         └──►  MongoDB Atlas
 ```
@@ -37,8 +46,8 @@ Two consequences worth remembering:
 | `MONGO_DB_NAME` | `restoDB` | |
 | `GOOGLE_CLIENT_ID` | `…apps.googleusercontent.com` | |
 | `GOOGLE_CLIENT_SECRET` | `GOCSPX-…` | Backend only — never exposed to the browser |
-| `GOOGLE_CLIENT_REDIRECT` | `https://<app>.vercel.app/api/backend/auth/google` | Must match Google exactly |
-| `FRONTEND_URL` | `https://<app>.vercel.app` | Post-sign-in redirect target |
+| `GOOGLE_CLIENT_REDIRECT` | `https://restaurantapp-subhadipgithubs-projects.vercel.app/api/backend/auth/google` | Must match Google exactly |
+| `FRONTEND_URL` | `https://restaurantapp-subhadipgithubs-projects.vercel.app` | Post-sign-in redirect target |
 | `SECRET_KEY` | generated | Session signing key |
 | `COOKIE_SECURE` | `true` | `false` only for local HTTP |
 | `ENABLE_DOCS` | `false` | Gates `/docs` and `/openapi.json` |
@@ -122,8 +131,8 @@ Verify: `curl https://<api>.onrender.com/health` → `{"status":"ok"}`.
 
 ### 5. Close the loop
 
-- **Google console** → add `https://<app>.vercel.app/api/backend/auth/google` as
-  an Authorized redirect URI and `https://<app>.vercel.app` as an Authorized
+- **Google console** → add `https://restaurantapp-subhadipgithubs-projects.vercel.app/api/backend/auth/google` as
+  an Authorized redirect URI and `https://restaurantapp-subhadipgithubs-projects.vercel.app` as an Authorized
   JavaScript origin.
 - **Vercel** → set `BACKEND_URL` to the Render URL and **redeploy**.
 
@@ -165,10 +174,10 @@ redirect URIs for local sign-in to work.
 curl https://<api>.onrender.com/health
 
 # The rewrite works
-curl https://<app>.vercel.app/api/backend/health
+curl https://restaurantapp-subhadipgithubs-projects.vercel.app/api/backend/health
 
 # Business endpoints reject anonymous callers
-curl -X POST https://<app>.vercel.app/api/backend/bookings \
+curl -X POST https://restaurantapp-subhadipgithubs-projects.vercel.app/api/backend/bookings \
   -H 'Content-Type: application/json' -d '{}'          # expect 401
 
 # API docs are not public
